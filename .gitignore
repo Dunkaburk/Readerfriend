@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+dist-ssr/
+worker_dist/
+.vite/
+
+# Wrangler / Cloudflare local state
+.wrangler/
+*.wrangler/
+
+# Env files — real values only, .env.example is committed
+.env
+.env.local
+.env.*.local
+.dev.vars
+
+# Capacitor / Android build output
+apps/web/android/app/build/
+apps/web/android/build/
+apps/web/android/.gradle/
+apps/web/android/local.properties
+apps/web/android/capacitor-cordova-android-plugins/
+*.keystore
+!debug.keystore
+keys/
+
+# Native iOS (in case the platform is ever added)
+ios/
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Test coverage
+coverage/
+
+# Local scratch
+/tmp
+*.local
+
+# Claude Code local session state
+.claude/

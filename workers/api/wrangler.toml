@@ -1,0 +1,19 @@
+name = "readerfriend-api"
+main = "src/index.ts"
+compatibility_date = "2025-05-05"
+
+# After `wrangler d1 create readerfriend`, paste the returned database_id here.
+# The binding name must match `Env.DB` in src/env.ts (and the R2 one, `BUCKET`).
+[[d1_databases]]
+binding = "DB"
+database_name = "readerfriend"
+database_id = "cd4dd873-d022-4382-8b0b-d6f54c438166"
+
+# After `wrangler r2 bucket create readerfriend-media`, this binding works as-is.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "readerfriend-media"
+
+# Secrets (never in this file), set once per environment:
+#   wrangler secret put APP_TOKEN          # `openssl rand -hex 32`
+#   wrangler secret put OPENROUTER_API_KEY # sk-or-...

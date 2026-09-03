@@ -1,0 +1,187 @@
+/*
+ * Readerfriend design tokens (§10).
+ *
+ * Three themes: light (near-white), sepia, dark (dark grey — never pure
+ * black, it smears on OLED). One accent. Text is the interface.
+ */
+
+@import 'tailwindcss';
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-accent: var(--accent);
+  --font-serif: 'Literata Variable', 'Literata', Georgia, 'Times New Roman', serif;
+}
+
+:root {
+  color-scheme: light;
+  --bg: #faf9f7;
+  --fg: #26241f;
+  --muted: #7a746a;
+  --surface: #ffffff;
+  --accent: #9a6b2f;
+  /* Soft highlight tint for read-along (§10): legible for minutes. */
+  --highlight: rgb(154 107 47 / 0.18);
+  --highlight-strong: rgb(154 107 47 / 0.38);
+}
+
+:root[data-theme='sepia'] {
+  color-scheme: light;
+  --bg: #f3ead7;
+  --fg: #3d3323;
+  --muted: #8a7a5f;
+  --surface: #fbf5e8;
+  --accent: #9a6b2f;
+  --highlight: rgb(154 107 47 / 0.22);
+  --highlight-strong: rgb(154 107 47 / 0.42);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #232323;
+  --fg: #dcd8d0;
+  --muted: #96908a;
+  --surface: #2d2c2a;
+  --accent: #d1a05f;
+  --highlight: rgb(209 160 95 / 0.22);
+  --highlight-strong: rgb(209 160 95 / 0.4);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--highlight);
+}
+
+/* Read-along chunk highlight (§9.4, §10): a soft tint, never a hard border.
+   Highlight pseudo-elements use literal per-theme colors — var() custom
+   properties are not reliably resolved inside ::highlight() (Chromium), which
+   left both tints unpainted. */
+::highlight(rf-chunk) {
+  background-color: rgb(154 107 47 / 0.18);
+}
+::highlight(rf-sentence) {
+  background-color: rgb(154 107 47 / 0.38);
+}
+:root[data-theme='sepia'] ::highlight(rf-chunk) {
+  background-color: rgb(154 107 47 / 0.22);
+}
+:root[data-theme='sepia'] ::highlight(rf-sentence) {
+  background-color: rgb(154 107 47 / 0.42);
+}
+:root[data-theme='dark'] ::highlight(rf-chunk) {
+  background-color: rgb(209 160 95 / 0.22);
+}
+:root[data-theme='dark'] ::highlight(rf-sentence) {
+  background-color: rgb(209 160 95 / 0.4);
+}
+
+/* Fallback mechanism when the Custom Highlight API is unavailable (plain
+   spans, where var() resolves normally). */
+[data-rf-hl] {
+  background-color: var(--highlight);
+}
+
+[data-rf-hl-sent] {
+  background-color: var(--highlight-strong);
+}
+
+/*
+ * Chapter typography (§10): a real serif, 70ch measure cap, generous line
+ * height. Font family / size / line-height / margins are set inline from
+ * user settings; these rules style the sanitized EPUB structure.
+ */
+.rf-chapter {
+  margin-inline: auto;
+  padding-block: 1.5rem 6rem;
+  text-wrap: pretty;
+  overflow-wrap: break-word;
+}
+.rf-chapter p {
+  margin: 0 0 1em;
+}
+.rf-chapter h1,
+.rf-chapter h2,
+.rf-chapter h3,
+.rf-chapter h4,
+.rf-chapter h5,
+.rf-chapter h6 {
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 1.5em 0 0.75em;
+  text-wrap: balance;
+}
+.rf-chapter h1 {
+  font-size: 1.5em;
+}
+.rf-chapter h2 {
+  font-size: 1.3em;
+}
+.rf-chapter h3,
+.rf-chapter h4,
+.rf-chapter h5,
+.rf-chapter h6 {
+  font-size: 1.15em;
+}
+.rf-chapter blockquote {
+  margin: 1em 0;
+  padding-left: 1em;
+  border-left: 2px solid var(--muted);
+  color: var(--muted);
+  font-style: italic;
+}
+.rf-chapter ul,
+.rf-chapter ol {
+  margin: 0 0 1em;
+  padding-left: 1.5em;
+}
+.rf-chapter img {
+  max-width: 100%;
+  height: auto;
+}
+.rf-chapter a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rf-chapter hr {
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--muted) 40%, transparent);
+  margin: 2em auto;
+  width: 40%;
+}
+.rf-chapter pre {
+  overflow-x: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+.rf-chapter table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  max-width: 100%;
+}
+.rf-chapter td,
+.rf-chapter th {
+  border: 1px solid color-mix(in srgb, var(--muted) 40%, transparent);
+  padding: 0.25em 0.5em;
+}
+
+

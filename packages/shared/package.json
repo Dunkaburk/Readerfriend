@@ -1,0 +1,25 @@
+{
+  "name": "@readerfriend/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./epub": "./src/epub/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "linkedom": "^0.18.13"
+  },
+  "devDependencies": {
+    "dompurify": "^3.4.14",
+    "happy-dom": "^20.13.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  }
+}
