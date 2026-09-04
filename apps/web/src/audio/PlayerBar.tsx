@@ -74,43 +74,58 @@ export function PlayerBar() {
   if (expanded) {
     return (
       <div className="fixed inset-0 z-40 flex flex-col bg-surface" role="dialog" aria-label="Now playing">
-        <div className="flex items-center justify-between px-4 pt-4">
+        <div className="flex items-center justify-between px-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <p className="truncate text-xs uppercase tracking-wide text-muted">{meta?.title ?? ''}</p>
           <button
             type="button"
             onClick={() => setExpanded(false)}
-            className="flex h-11 w-11 items-center justify-center rounded text-muted hover:text-fg"
-            aria-label="Minimise player"
+            className="inline-flex h-11 items-center gap-1.5 rounded-full border border-black/15 px-4 text-xs font-medium text-muted hover:bg-black/5 hover:text-fg dark:border-white/20 dark:hover:bg-white/5"
+            aria-label="Minimise player — back to reading"
+            title="Back to reading"
           >
-            ⌄
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="shrink-0">
+              <path
+                d="M6 10l6 6 6-6"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Back to reading
           </button>
         </div>
-        <div className="flex flex-1 flex-col items-center justify-center gap-6 px-8">
-          <div className="aspect-square w-48 overflow-hidden rounded-lg shadow-lg sm:w-64">
-            <CoverArt coverKey={meta?.coverKey ?? null} title={meta?.title ?? ''} />
+        {/* Scrollable center column: auto centering degrades to scrollable
+            top-alignment when the stack outgrows the viewport, so the cover
+            never gets squashed and nothing clips out of reach. */}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="flex min-h-full flex-col items-center justify-center gap-5 px-8 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+            <div className="aspect-[2/3] w-36 shrink-0 overflow-hidden rounded-lg shadow-lg sm:w-48">
+              <CoverArt coverKey={meta?.coverKey ?? null} title={meta?.title ?? ''} />
+            </div>
+            <div className="w-full max-w-md text-center">
+              <p className="truncate text-lg text-fg">{chapterTitle}</p>
+              <p className="mt-1 text-sm text-muted">{meta?.author ?? ''}</p>
+            </div>
+            <p className="text-sm text-muted tabular-nums">{position}</p>
+            <GenerationLine
+              waiting={narration.waiting}
+              gen={gen}
+              ready={readyCount ?? null}
+              total={narration.totalChunks}
+              chapterNum={(narration.chapterIdx ?? 0) + 1}
+              centered
+            />
+            {controls}
+            <QuotaLine gen={gen} />
+            <BulkGeneration
+              bookId={bookId}
+              chapterIdx={narration.chapterIdx}
+              chapterPending={chapterPending ?? []}
+              bookPending={bookPending ?? 0}
+              gen={gen}
+            />
           </div>
-          <div className="w-full max-w-md text-center">
-            <p className="truncate text-lg text-fg">{chapterTitle}</p>
-            <p className="mt-1 text-sm text-muted">{meta?.author ?? ''}</p>
-          </div>
-          <p className="text-sm text-muted tabular-nums">{position}</p>
-          <GenerationLine
-            waiting={narration.waiting}
-            gen={gen}
-            ready={readyCount ?? null}
-            total={narration.totalChunks}
-            chapterNum={(narration.chapterIdx ?? 0) + 1}
-            centered
-          />
-          {controls}
-          <QuotaLine gen={gen} />
-          <BulkGeneration
-            bookId={bookId}
-            chapterIdx={narration.chapterIdx}
-            chapterPending={chapterPending ?? []}
-            bookPending={bookPending ?? 0}
-            gen={gen}
-          />
         </div>
       </div>
     );
@@ -119,7 +134,7 @@ export function PlayerBar() {
   return (
     <div
       className={
-        'fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-surface/95 backdrop-blur transition-transform duration-150 dark:border-white/10 ' +
+        'fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-transform duration-150 dark:border-white/10 ' +
         'translate-y-0'
       }
     >

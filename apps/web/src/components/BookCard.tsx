@@ -48,7 +48,7 @@ export function BookCard({ book }: { book: BookWithProgress }) {
     <div className="group relative">
       <Link
         to={`/book/${book.id}`}
-        className="block overflow-hidden rounded-md shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-accent"
+        className="relative block overflow-hidden rounded-md shadow-sm ring-1 ring-black/5 transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-accent"
         style={{ aspectRatio: '2 / 3' }}
       >
         <BookCover book={book} />

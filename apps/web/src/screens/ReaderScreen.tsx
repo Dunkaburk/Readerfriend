@@ -424,11 +424,11 @@ export function ReaderScreen() {
       {/* Top chrome (§6.1) */}
       <header
         className={
-          'fixed inset-x-0 top-0 z-30 h-14 border-b border-black/10 bg-surface/95 backdrop-blur transition-transform duration-150 dark:border-white/10 ' +
+          'fixed inset-x-0 top-0 z-30 border-b border-black/10 bg-surface/95 pt-[env(safe-area-inset-top)] backdrop-blur transition-transform duration-150 dark:border-white/10 ' +
           (chromeVisible ? 'translate-y-0' : '-translate-y-full')
         }
       >
-        <div className="mx-auto flex h-full max-w-4xl items-center gap-1 px-2">
+        <div className="mx-auto flex h-14 max-w-4xl items-center gap-1 px-2">
           <Link
             to="/"
             className="flex h-11 min-w-11 items-center justify-center rounded px-2 text-sm text-accent"
@@ -439,6 +439,24 @@ export function ReaderScreen() {
           <h1 className="min-w-0 flex-1 truncate text-sm text-fg">
             {chapterMeta?.title ?? (chapterIdx !== null ? `Chapter ${chapterIdx + 1}` : data.book.title)}
           </h1>
+          <Link
+            to="/settings"
+            className="flex h-11 w-11 items-center justify-center rounded text-muted hover:text-fg"
+            aria-label="Settings"
+            title="Settings"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path
+                d="M4 7h9M17.5 7H20M4 12h3M11.5 12H20M4 17h9M17.5 17H20"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+              />
+              <circle cx="15" cy="7" r="2.1" stroke="currentColor" strokeWidth="1.6" />
+              <circle cx="9" cy="12" r="2.1" stroke="currentColor" strokeWidth="1.6" />
+              <circle cx="15" cy="17" r="2.1" stroke="currentColor" strokeWidth="1.6" />
+            </svg>
+          </Link>
           <button
             type="button"
             onClick={() => setAppearanceOpen(true)}
@@ -484,7 +502,7 @@ export function ReaderScreen() {
       {/* Bottom chrome */}
       <footer
         className={
-          'fixed inset-x-0 bottom-0 z-30 border-t border-black/10 bg-surface/95 backdrop-blur transition-transform duration-150 dark:border-white/10 ' +
+          'fixed inset-x-0 bottom-0 z-30 border-t border-black/10 bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-transform duration-150 dark:border-white/10 ' +
           (chromeVisible ? 'translate-y-0' : 'translate-y-full')
         }
       >
