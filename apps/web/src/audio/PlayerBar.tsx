@@ -12,7 +12,12 @@ import { blobStore } from '../adapters/blobStore.dexie';
 import { db } from '../db/dexie';
 import { useNarration } from '../state/narration';
 import { useGenerationStatus } from './useGenerationStatus';
-import { generationQueue, QUOTA_WARNING_AT, DAILY_QUOTA } from './generationQueue';
+import {
+  generationQueue,
+  DAILY_QUOTA,
+  QUOTA_WARNING_AT,
+  RATE_INTERVAL_MS,
+} from './generationQueue';
 
 export const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2] as const;
 
@@ -111,6 +116,7 @@ export function PlayerBar() {
             <GenerationLine
               waiting={narration.waiting}
               gen={gen}
+              bookId={bookId}
               ready={readyCount ?? null}
               total={narration.totalChunks}
               chapterNum={(narration.chapterIdx ?? 0) + 1}
@@ -131,6 +137,12 @@ export function PlayerBar() {
     );
   }
 
+  // Determinate strip when a bulk run is generating this book's audio.
+  const stripPct =
+    gen.bulk && gen.bulk.bookId === bookId && gen.bulk.total > 0
+      ? Math.min(100, Math.round((gen.bulk.done / gen.bulk.total) * 100))
+      : null;
+
   return (
     <div
       className={
@@ -138,9 +150,21 @@ export function PlayerBar() {
         'translate-y-0'
       }
     >
+      {(stripPct !== null || gen.pending > 0) && (
+        <div className="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-black/5 dark:bg-white/10" aria-hidden>
+          <div
+            className={
+              'h-full bg-accent transition-[width] duration-500 ' +
+              (stripPct === null ? 'w-1/3 animate-pulse' : '')
+            }
+            style={stripPct !== null ? { width: `${stripPct}%` } : undefined}
+          />
+        </div>
+      )}
       <GenerationLine
         waiting={narration.waiting}
         gen={gen}
+        bookId={bookId}
         ready={readyCount ?? null}
         total={narration.totalChunks}
         chapterNum={(narration.chapterIdx ?? 0) + 1}
@@ -250,6 +274,7 @@ function SpeedButton({ narration }: { narration: ReturnType<typeof useNarration.
 function GenerationLine({
   waiting,
   gen,
+  bookId,
   ready,
   total,
   chapterNum,
@@ -257,6 +282,7 @@ function GenerationLine({
 }: {
   waiting: boolean;
   gen: ReturnType<typeof useGenerationStatus>;
+  bookId: string | null;
   ready: number | null;
   total: number;
   chapterNum: number;
@@ -270,11 +296,37 @@ function GenerationLine({
       </div>
     );
   }
+  // A bulk run for this book gets a real progress bar, not just a count.
+  const bulk = gen.bulk && gen.bulk.bookId === bookId ? gen.bulk : null;
+  if (bulk && bulk.total > 0) {
+    const pct = Math.min(100, Math.round((bulk.done / bulk.total) * 100));
+    return (
+      <div className="w-full px-4 py-1.5">
+        <div className="mx-auto w-full max-w-md">
+          <div className="h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/15">
+            <div
+              className="h-full rounded-full bg-accent transition-[width] duration-500"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p className={'mt-1 text-xs text-muted tabular-nums ' + (centered ? 'text-center' : '')}>
+            Generating audio — {bulk.done} of {bulk.total} chunks ({gen.pending} to go).
+          </p>
+        </div>
+      </div>
+    );
+  }
   if (gen.current || gen.pending > 0) {
-    const readyText = ready !== null ? `${ready} of ${total} chunks ready` : `${gen.pending} queued`;
+    // Background jobs usually target chapters other than the playhead's, so
+    // report the queue's own chapter and a live remaining count — the
+    // playhead's "N of M ready" would sit frozen and look stuck.
+    const chapter = gen.current ? gen.current.chapterIdx + 1 : null;
+    const n = gen.pending;
     return (
       <p className={'px-4 py-1.5 text-xs text-muted ' + (centered ? 'text-center' : '')}>
-        Generating chapter {chapterNum} — {readyText}.
+        {chapter !== null
+          ? `Generating chapter ${chapter} — ${n} chunk${n === 1 ? '' : 's'} remaining.`
+          : `Finishing up — ${n} chunk${n === 1 ? '' : 's'} remaining.`}
       </p>
     );
   }
@@ -295,7 +347,7 @@ function QuotaLine({ gen }: { gen: ReturnType<typeof useGenerationStatus> }) {
 /**
  * Bulk generation (§9.2): "generate whole chapter" and "generate whole book"
  * for users preparing an offline trip, with the time warning the spec asks
- * for. 12 chunks/minute → ~5s per chunk.
+ * for. ~17 chunks/minute → ~3.5s per chunk, a few in parallel.
  */
 function BulkGeneration({
   bookId,
@@ -313,10 +365,10 @@ function BulkGeneration({
   if (!bookId || chapterIdx === null) return null;
   const busyHere = gen.current?.bookId === bookId;
   const working = busyHere || gen.pending > 0;
-  const minutes = (chunks: number): number => Math.max(1, Math.ceil((chunks * 5) / 60));
+  const minutes = (chunks: number): number => Math.max(1, Math.ceil((chunks * RATE_INTERVAL_MS) / 60_000));
 
   const generateChapter = (): void => {
-    generationQueue.enqueue(bookId, chapterIdx, chapterPending, 'prefetch');
+    generationQueue.enqueueBulk(bookId, [{ chapterIdx, chunkIdxs: chapterPending }]);
   };
 
   const generateBook = async (): Promise<void> => {
@@ -328,14 +380,16 @@ function BulkGeneration({
       if (list) list.push(r.chunkIdx);
       else byChapter.set(r.chapterIdx, [r.chunkIdx]);
     }
-    for (const [ch, idxs] of byChapter) {
-      generationQueue.enqueue(bookId, ch, idxs, 'prefetch');
-    }
+    generationQueue.enqueueBulk(
+      bookId,
+      [...byChapter.entries()].map(([ch, idxs]) => ({ chapterIdx: ch, chunkIdxs: idxs })),
+    );
   };
 
+  // Bulk jobs are prefetch-priority: cancelling keeps any user-priority
+  // (playhead) jobs alive so ongoing playback is unaffected.
   const stop = (): void => {
-    generationQueue.cancelChapter(bookId, chapterIdx);
-    if (gen.current?.bookId === bookId) generationQueue.cancelBook(bookId);
+    generationQueue.cancelBulk(bookId);
   };
 
   if (chapterPending.length === 0 && bookPending === 0 && !working) return null;
@@ -374,8 +428,10 @@ function BulkGeneration({
       </div>
       {(chapterPending.length > 0 || bookPending > 0) && (
         <p className="mt-2 text-xs text-muted">
-          Generation runs one chunk every 5 seconds in the background — keep the app open until it
-          finishes. {bookPending > 0 ? `${bookPending} chunk${bookPending === 1 ? '' : 's'} in this book lack audio.` : ''}
+          Generation runs in the background — a new chunk every ~3.5 seconds, a few in parallel — so
+          keep the app open until it finishes. Progress shows on the player here and on a card on
+          other screens.{' '}
+          {bookPending > 0 ? `${bookPending} chunk${bookPending === 1 ? '' : 's'} in this book lack audio.` : ''}
         </p>
       )}
     </div>

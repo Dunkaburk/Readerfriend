@@ -30,6 +30,10 @@ function authHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+/** Generation streams a fresh TTS render — give slow providers room, but a
+ *  hung request must never stall the generation queue permanently. */
+const GENERATE_TIMEOUT_MS = 120_000;
+
 async function request(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(API_BASE + path, {
     ...init,
@@ -136,6 +140,7 @@ export const api = {
         model: opts.model ?? undefined,
         voice: opts.voice ?? undefined,
       }),
+      signal: AbortSignal.timeout(GENERATE_TIMEOUT_MS),
     });
   },
 

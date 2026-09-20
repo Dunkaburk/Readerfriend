@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { LibraryScreen } from './screens/LibraryScreen';
 import { ReaderScreen } from './screens/ReaderScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { GenerationProgressCard } from './audio/GenerationProgressCard';
 import { useThemeEffect } from './useThemeEffect';
 
 export function App() {
@@ -14,6 +15,8 @@ export function App() {
         <Route path="/book/:bookId" element={<ReaderScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
       </Routes>
+      {/* Background TTS generation is visible (and stoppable) from anywhere. */}
+      <GenerationProgressCard />
     </BrowserRouter>
   );
 }

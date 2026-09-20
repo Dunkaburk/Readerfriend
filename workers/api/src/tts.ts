@@ -57,6 +57,7 @@ export async function fetchTtsModels(apiKey: string): Promise<TtsModel[]> {
   try {
     res = await fetch(MODELS_URL, {
       headers: { Authorization: `Bearer ${apiKey}` },
+      signal: AbortSignal.timeout(30_000),
     });
   } catch {
     throw new TtsError('Could not reach OpenRouter to list models.', 502);
@@ -127,8 +128,16 @@ export async function requestSpeech(apiKey: string, req: SpeechRequest): Promise
         ...(req.voice ? { voice: req.voice } : {}),
         response_format: req.responseFormat ?? 'mp3',
       }),
+      // A speech render can legitimately take a while — measured ~60s for a
+      // 2,000-char chunk on fish-audio free models, streaming the whole time
+      // (TTFB is instant) — but an upstream hang must end somewhere; the
+      // client queue retries on our failure.
+      signal: AbortSignal.timeout(110_000),
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.name === 'TimeoutError') {
+      throw new TtsError('OpenRouter took too long to generate speech.', 504);
+    }
     throw new TtsError('Could not reach OpenRouter for speech generation.', 502);
   }
   if (res.ok) return res;
