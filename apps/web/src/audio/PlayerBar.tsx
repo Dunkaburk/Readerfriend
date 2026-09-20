@@ -119,7 +119,7 @@ export function PlayerBar() {
               bookId={bookId}
               ready={readyCount ?? null}
               total={narration.totalChunks}
-              chapterNum={(narration.chapterIdx ?? 0) + 1}
+              chapterTitle={narration.chapterTitle}
               centered
             />
             {controls}
@@ -167,7 +167,7 @@ export function PlayerBar() {
         bookId={bookId}
         ready={readyCount ?? null}
         total={narration.totalChunks}
-        chapterNum={(narration.chapterIdx ?? 0) + 1}
+        chapterTitle={narration.chapterTitle}
       />
       {narration.error && (
         <p className="px-4 text-xs text-red-600 dark:text-red-400" role="alert">
@@ -277,7 +277,7 @@ function GenerationLine({
   bookId,
   ready,
   total,
-  chapterNum,
+  chapterTitle,
   centered,
 }: {
   waiting: boolean;
@@ -285,14 +285,26 @@ function GenerationLine({
   bookId: string | null;
   ready: number | null;
   total: number;
-  chapterNum: number;
+  /** The narrated chapter's display title ("Chapter 2") — spine idx + 1 is
+   *  not the number the reader sees when a book has front matter. */
+  chapterTitle: string | null;
   centered?: boolean;
 }) {
+  const genChapter = gen.current?.chapterIdx ?? null;
+  // Display title of whichever chapter the queue is working on — spine
+  // idx + 1 is not the number the reader sees when a book has front matter.
+  const genChapterTitle = useLiveQuery(
+    async () =>
+      bookId && genChapter !== null
+        ? ((await db.chapters.get([bookId, genChapter]))?.title ?? null)
+        : null,
+    [bookId, genChapter],
+  );
   if (waiting) {
     return (
       <div className={'flex items-center gap-2 px-4 py-1.5 text-xs text-muted ' + (centered ? 'justify-center' : '')}>
         <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent border-t-transparent" aria-hidden />
-        {ready !== null ? `Generating chapter ${chapterNum} — ${ready} of ${total} chunks.` : 'Generating this chunk…'}
+        {ready !== null ? `Generating ${chapterTitle ?? 'audio'} — ${ready} of ${total} chunks.` : 'Generating this chunk…'}
       </div>
     );
   }
@@ -320,12 +332,11 @@ function GenerationLine({
     // Background jobs usually target chapters other than the playhead's, so
     // report the queue's own chapter and a live remaining count — the
     // playhead's "N of M ready" would sit frozen and look stuck.
-    const chapter = gen.current ? gen.current.chapterIdx + 1 : null;
     const n = gen.pending;
     return (
       <p className={'px-4 py-1.5 text-xs text-muted ' + (centered ? 'text-center' : '')}>
-        {chapter !== null
-          ? `Generating chapter ${chapter} — ${n} chunk${n === 1 ? '' : 's'} remaining.`
+        {genChapter !== null
+          ? `Generating ${genChapterTitle ?? `chapter ${genChapter + 1}`} — ${n} chunk${n === 1 ? '' : 's'} remaining.`
           : `Finishing up — ${n} chunk${n === 1 ? '' : 's'} remaining.`}
       </p>
     );

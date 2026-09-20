@@ -370,13 +370,25 @@ export function ReaderScreen() {
       setNarratedChunk(idx);
       if (idx === null) return;
       if (n.active && n.bookId === bookId && n.chapterIdx === chapterIdx) {
-        // Sentence-level seek (§9.4): to the start of the tapped sentence. A
-        // sibling chunk's position is estimated from the playing chunk's
-        // duration (same constant-rate approximation as the highlight).
+        // Sentence-level seek (§9.4): to the start of the tapped sentence.
+        // The tapped chunk's duration is unknown until its audio loads, so
+        // scale the playing chunk's measured duration by the two chunks'
+        // character counts (same constant-rate approximation as the
+        // highlight). Using the playing chunk's duration directly assumed
+        // every chunk lasts as long as the current one — taps into shorter
+        // chunks overshot into the chunk's tail (or the next one).
         const chunk = chapter.chunks.find((c) => c.chunkIdx === idx);
+        const playing =
+          n.chunkIdx !== null ? chapter.chunks.find((c) => c.chunkIdx === n.chunkIdx) : undefined;
+        const playingChars = playing ? playing.charEnd - playing.charStart : 0;
+        const chunkChars = chunk ? chunk.charEnd - chunk.charStart : 0;
+        const estDurationMs =
+          playingChars > 0 && chunkChars > 0
+            ? Math.round((n.durationMs * chunkChars) / playingChars)
+            : 0;
         if (chunk) {
           const sentStart = sentenceStartForOffset(chunk, offset);
-          n.seekToChunkPosition(idx, chunkOffsetToMs(chunk, sentStart, n.durationMs));
+          n.seekToChunkPosition(idx, chunkOffsetToMs(chunk, sentStart, estDurationMs));
         } else {
           n.seekToChunk(idx);
         }

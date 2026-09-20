@@ -224,10 +224,18 @@ export class GenerationQueue {
     chunkIdxs: number[],
     priority: JobPriority,
   ): void {
+    let added = 0;
     for (const chunkIdx of chunkIdxs) {
       if (this.isQueued(bookId, chapterIdx, chunkIdx)) continue;
       this.jobs.push({ bookId, chapterIdx, chunkIdx, priority });
+      added++;
     }
+    // A no-op enqueue must not emit: the narrator's prefetch re-enqueues the
+    // first missing chunk ahead of the playhead on every queue event, so an
+    // emit here (dedupe → emit → refreshAhead → dedupe → …) spins an endless
+    // IDB-hot loop for as long as that chunk lacks audio — the reader
+    // becomes unresponsive while generation runs.
+    if (added === 0) return;
     this.refreshBulk();
     void this.persist();
     this.emit();

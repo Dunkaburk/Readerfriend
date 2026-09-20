@@ -181,7 +181,10 @@ export const useNarration = create<NarrationState>()((set, get) => ({
 
   seekToChunkPosition(chunkIdx, positionMs) {
     if (!session || !session.byIdx.has(chunkIdx)) return;
-    if (get().chunkIdx === chunkIdx) {
+    // A pending cross-chunk wait hasn't updated chunkIdx yet — a same-chunk
+    // seek then would touch the old element and later lose to the wait.
+    // Route through playChunk instead, which owns the wait.
+    if (get().chunkIdx === chunkIdx && !get().waiting) {
       const ms = Math.max(0, positionMs);
       player?.seek(ms);
       set({ positionMs: ms });
@@ -224,6 +227,12 @@ interface Session {
 
 let session: Session | null = null;
 let player: PingPongPlayer | null = null;
+/** Bumped at every playChunk request. A wait that resolves after a newer
+ *  request (another tap, skip, chapter change) must not touch the player —
+ *  but it can't detect that via state.chunkIdx, which only updates once
+ *  audio resolves, so the stale comparison silently discarded every
+ *  cross-chunk wait's result and left the spinner stuck. */
+let playRequestSeq = 0;
 let progressTimer: ReturnType<typeof setInterval> | undefined;
 let queueUnsub: (() => void) | undefined;
 /** chunkIdx → object URL for the current session. */
@@ -245,6 +254,7 @@ async function playChunk(
 ): Promise<void> {
   if (!session || !player || chunkIdx === undefined) return;
   const sess = session;
+  const seq = ++playRequestSeq;
   const chunk = sess.byIdx.get(chunkIdx);
   if (!chunk) return;
 
@@ -256,7 +266,9 @@ async function playChunk(
     useNarration.setState({ waiting: true, playing: false });
     generationQueue.prioritize(sess.bookId, sess.chapterIdx, chunkIdx);
     blob = await waitForChunk(chunkIdx);
-    if (session !== sess || chunkIdx !== useNarration.getState().chunkIdx) return; // user moved on
+    // Superseded by a newer playChunk request (another tap/skip), or the
+    // session ended (stop() nulls it). The newer request owns the flags.
+    if (session !== sess || seq !== playRequestSeq) return; // user moved on
     if (!blob) {
       useNarration.setState({
         waiting: false,
