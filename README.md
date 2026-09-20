@@ -1,16 +1,12 @@
 # Readerfriend
 
 A personal ebook reader with AI-generated audiobook narration. Import an EPUB or
-TXT file, read it in a quiet, typography-first interface, and press **Audiobook**
-to have the current chapter narrated by a TTS model — with the text highlighted
-as it is read aloud. Your library, reading position and generated audio sync
-between your phone and your browser.
+TXT file and press **Audiobook** to have the current chapter narrated by a 
+TTS model — with the text highlighted as it is read aloud. Your library, reading 
+position and generated audio sync between your phone and your browser.
 
-Built for one person (the repository owner). No accounts, no multi-tenancy —
-auth is a single shared bearer token that keeps strangers from spending your
-OpenRouter quota. Recurring cost is **zero**: everything runs on permanent free
-tiers; the only spend is a one-time $10 OpenRouter credit (already committed)
-that unlocks the 1000-requests/day TTS cap.
+Built for myself only at the moment which means no one else can use this without 
+an access key.
 
 ## Architecture
 
@@ -117,7 +113,7 @@ stubbed. The web tests cover EPUB/normalization/chunking, the plain-text ↔ DOM
 offset mapping, the generation queue's rate limiting and backoff, playback
 swap logic, audio resolution, and the sync engine's merge rules.
 
-## How sync works (one user, deliberately simple)
+## How sync works
 
 - On start, on reconnect and on focus, the client pulls
   `GET /api/library?since=<watermark>` and merges book metadata + reading
@@ -163,17 +159,6 @@ pnpm dlx cap open android      # build/sign the APK in Android Studio
 (a WebView suspends it when the screen locks) needs a foreground-service
 plugin — research current options when picking this milestone up, and verify
 screen-off playback on real hardware before calling it done.
-
-## Decisions (SPEC §15)
-
-- **Continuous scroll** reader, not pagination — simpler, and required for
-  highlight-and-scroll-into-view to feel right.
-- **No automatic eviction** of R2 audio; Settings shows usage instead. The
-  owner will revisit at the 10 GB mark.
-- **No on-device TTS fallback** (`speechSynthesis`) for now — revisit if
-  generation quota becomes a daily pain point.
-- **Second-device hydration** re-parses the downloaded source for *rendering*
-  but always reads the chunk plan from the server (never recomputed, §13.1).
 - Progress writes are local-first (immediate) and server-debounced (~5 s);
   narration writes take over while audio plays.
 
