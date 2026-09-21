@@ -7,16 +7,18 @@ import { PingPongPlayer, type AudioElementLike, type PlayerEvent } from '../src/
 
 interface FakeElement {
   el: AudioElementLike & { duration: number };
-  fire(type: 'ended' | 'error'): void;
+  fire(type: 'ended' | 'error' | 'loadedmetadata'): void;
 }
 
-function fakeElement(): FakeElement {
+function fakeElement(resetsRateOnLoad = false): FakeElement {
+  let srcVal = '';
   const listeners = new Map<string, Set<(ev?: unknown) => void>>();
   const el: AudioElementLike & { duration: number } = {
     src: '',
     preload: '',
     currentTime: 0,
     playbackRate: 1,
+    defaultPlaybackRate: 1,
     preservesPitch: true,
     paused: true,
     duration: 30,
@@ -36,6 +38,18 @@ function fakeElement(): FakeElement {
       listeners.get(type)?.delete(cb);
     },
   };
+  if (resetsRateOnLoad) {
+    // Chromium behaviour: every new resource load resets playbackRate to
+    // defaultPlaybackRate — verified live: with default=1 a preloaded src
+    // swap audibly reverted a 2× session to 1× after a couple of chunks.
+    Object.defineProperty(el, 'src', {
+      get: () => srcVal,
+      set: (v: string) => {
+        srcVal = v;
+        el.playbackRate = el.defaultPlaybackRate;
+      },
+    });
+  }
   return {
     el,
     fire(type) {
@@ -183,6 +197,47 @@ describe('PingPongPlayer', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('keeps the chosen rate across every chunk preload (Chromium resets to defaultPlaybackRate per load)', () => {
+    const elements = [fakeElement(true), fakeElement(true)];
+    let n = 0;
+    const player = new PingPongPlayer({
+      createElement: () => elements[n++]!.el,
+      positionIntervalMs: 50,
+    });
+    const a = elements[0]!.el;
+    const b = elements[1]!.el;
+    const fireA = elements[0]!.fire;
+    player.setRate(2);
+    // Each src assignment resets the element rate to defaultPlaybackRate;
+    // setRate pinned it, so every load — initial, preload and post-swap —
+    // lands on 2. (The regression: chunks 0–1 played at 2×, then the swap
+    // onto the freshly preloaded element audibly fell back to 1×.)
+    player.loadQueue(
+      [
+        { url: 'u1', chunkIdx: 0 },
+        { url: 'u2', chunkIdx: 1 },
+        { url: 'u3', chunkIdx: 2 },
+      ],
+      0,
+    );
+    expect(a.playbackRate).toBe(2);
+    expect(b.playbackRate).toBe(2);
+    fireA('ended'); // swap to b; preloadNext assigns u3 to a
+    expect(a.playbackRate).toBe(2);
+    expect(player.currentChunkIdx).toBe(1);
+  });
+
+  it('re-applies the rate once a load finishes (engines that clear it at load start)', () => {
+    const { player, a, fireA } = makePlayerWithQueue();
+    player.setRate(2);
+    player.loadQueue([{ url: 'u1', chunkIdx: 0 }], 0);
+    // Simulate an engine that clears both rates on load:
+    a.playbackRate = 1;
+    a.defaultPlaybackRate = 1;
+    fireA('loadedmetadata');
+    expect(a.playbackRate).toBe(2);
   });
 
   it('destroy stops the elements and clears handlers', () => {

@@ -17,6 +17,7 @@ export interface AudioElementLike {
   preload: string;
   currentTime: number;
   playbackRate: number;
+  defaultPlaybackRate: number;
   preservesPitch: boolean;
   paused: boolean;
   play(): Promise<void> | void;
@@ -65,6 +66,15 @@ export class PingPongPlayer {
       el.preload = 'auto';
       el.addEventListener('ended', () => this.onEnded());
       el.addEventListener('error', () => this.handlers.forEach((h) => h({ type: 'error', error: new Error('Audio element error') })));
+      // A new resource load resets playbackRate to defaultPlaybackRate
+      // (verified on Chromium: preloadNext assigns a fresh src at every chunk
+      // swap, which audibly reverted the speed while the UI still showed it).
+      // setRate pins defaultPlaybackRate so the reset lands on the chosen
+      // rate; this re-apply also covers engines that clear both on load —
+      // nothing is audible before HAVE_METADATA, so it lands in time.
+      el.addEventListener('loadedmetadata', () => {
+        if (el.playbackRate !== this.rate) el.playbackRate = this.rate;
+      });
     }
     this.startTimer(opts.positionIntervalMs ?? 250);
   }
@@ -142,7 +152,12 @@ export class PingPongPlayer {
 
   setRate(rate: number): void {
     this.rate = rate;
-    for (const el of this.elements) el.playbackRate = rate;
+    for (const el of this.elements) {
+      el.playbackRate = rate;
+      // Every future load (preloadNext's src swap) resets to this, so the
+      // rate carries across chunk switches.
+      el.defaultPlaybackRate = rate;
+    }
   }
 
   /** Jump to a specific queue position (skip forward/back by chunk). */

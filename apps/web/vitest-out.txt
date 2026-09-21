@@ -1,0 +1,9 @@
+﻿
+ RUN  v4.1.11 E:/repositories/Readerfriend/apps/web
+
+
+ Test Files  10 passed (10)
+      Tests  73 passed (73)
+   Start at  12:26:26
+   Duration  8.18s (transform 4.31s, setup 10.15s, import 6.97s, tests 924ms, environment 41.05s)
+
